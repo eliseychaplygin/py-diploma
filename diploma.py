@@ -13,37 +13,25 @@ def get_token():
         return token
 
 
-def get_friends_list(user_id):
-    params = {
-        'access_token': token,
-        'v': '5.92',
-        'user_id': user_id
-    }
+def get_friends_list(user_id, params):
+    params['user_id'] = user_id
     resp = requests.get(URL_API + 'friends.get', params=params)
     friends = resp.json()
     friends_list = friends['response']['items']
     return friends_list
 
-def get_groups(user_id):
-    params = {
-        'access_token': token,
-        'v': '5.92',
-        'user_id': user_id
-    }
+def get_groups(user_id, params):
+    params['user_id'] = user_id
     resp = requests.get(URL_API + 'groups.get', params=params)
     groups = resp.json()
     groups_list = groups['response']['items']
     return groups_list
 
-def get_friends_groups(friends_list):
+def get_friends_groups(friends_list, params):
     group_friend_list = []
     count = 0
     for friend_id in friends_list:
-        params = {
-            'access_token': token,
-            'v': '5.92',
-            'user_id': friend_id
-        }
+        params['user_id'] = friend_id
         resp = requests.get(URL_API + 'groups.get', params=params)
         print('_')
         group = resp.json()
@@ -57,21 +45,46 @@ def get_friends_groups(friends_list):
 
 
 def comparison_group(user_group_list, group_friends_list):
-    res_list = list(set(user_group_list) & set(group_friends_list))
+    res_list = list(set(user_group_list) - set(group_friends_list))
     return res_list
+
+def get_group_info(group_list, params):
+    info_list = []
+    info_group_list = []
+    info_group_dict = {}
+    for group in group_list:
+        params['group_ids'] = group
+        params['fields'] = 'members_count'
+        resp = requests.get(URL_API + 'groups.getById', params=params).json()
+        info_list.append(resp['response'][0])
+    for i in info_list:
+        for key, value in i.items():
+            if 'name' == key:
+                info_group_dict[key] = value
+            elif 'id' == key:
+                info_group_dict['gid'] = value
+            elif 'members_count' == key:
+                info_group_dict[key] = value
+        info_group_list.append(info_group_dict.copy())
+    return info_group_list
+
+def write_json(info):
+    with open('groups.json', 'w') as f:
+        json.dump(info, f, indent=4)
+
 
 
 if __name__ == '__main__':
     URL_API = 'https://api.vk.com/method/'
     user_id = '171691064'
     token = get_token()
-    user_group_list = get_groups(user_id)
-    user_friends_list = get_friends_list(user_id)
-    friends_group = [4100014, 22798006, 32439535, 14785431, 41139501, 49298257, 167597091, 101125438, 52260507, 5606643,
-                     40282573, 26424819, 129878488, 58303964, 26310332, 109700925, 5409517, 98032777, 72633813,
-                     117779568, 63228590, 144218281, 9156679, 43650750, 11597467, 116261992, 145809034, 64043104,
-                     129594987, 53684863, 161434380, 88996895, 13881742, 134326172, 84861282, 14921225, 88036767,
-                     55735037, 73112596, 73821979, 40632615, 144768584, 85691389, 22958775, 65987412, 136689834,
-                     109232994, 94280911, 125107285, 73651226]
-    user_group = [8564, 125927592, 101522128, 4100014, 35486626, 27683540, 151498735, 142410745]
-    print(comparison_group(user_group, user_friends_list))
+    params = {
+        'access_token': token,
+        'v': '5.92'
+    }
+    user_group_list = get_groups(user_id, params)
+    user_friends_list = get_friends_list(user_id, params)
+    group_friends_list = get_friends_groups(user_friends_list, params)
+    unique_group = comparison_group(user_group_list, group_friends_list)
+    group_info = get_group_info(unique_group, params)
+    write_json(group_info)
