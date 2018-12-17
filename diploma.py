@@ -1,5 +1,6 @@
 import requests
 import json
+import time
 from pprint import pprint
 
 
@@ -29,17 +30,28 @@ def get_groups(user_id, params):
 
 def get_friends_groups(friends_list, params):
     group_friend_list = []
-    count = 0
+    count = 1
     for friend_id in friends_list:
         params['user_id'] = friend_id
         resp = requests.get(URL_API + 'groups.get', params=params)
-        print('_')
+        print(f'Собираем информацию по сообществам среди друзей. Обрабатываем {count} друга из {len(friends_list)}')
         group = resp.json()
         try:
             for i in group['response']['items']:
                 group_friend_list.append(i)
         except KeyError:
-            count += 1 #просто для интереса
+            if 7 == group['error']['error_code']:
+                print('Пользователь закрыл информацию по своим сообществам')
+            elif 6 == group['error']['error_code']:
+                print('Превышено количество запросов в секунду')
+            elif 18 == group['error']['error_code']:
+                print('Страница удалена или заблокирована')
+            elif 30 == group['error']['error_code']:
+                print('Страница приватная')
+            else:
+                print(f'Возникла ошибка № {group["error"]["error_code"]}')
+        count += 1
+        time.sleep(3)
     set(group_friend_list)
     return list(group_friend_list)
 
