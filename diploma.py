@@ -30,12 +30,15 @@ def get_groups(user_id, params):
 
 def get_friends_groups(friends_list, params):
     group_friend_list = []
-    count = 1
-    for friend_id in friends_list:
-        params['user_id'] = friend_id
+    friend_number = 1
+    count = 0
+    while count < len(friends_list):
+        params['user_id'] = friends_list[count]
         resp = requests.get(URL_API + 'groups.get', params=params)
-        print(f'Собираем информацию по сообществам среди друзей. Обрабатываем {count} друга из {len(friends_list)}')
+        print(f'Собираем информацию по сообществам среди друзей. Обрабатываем {friend_number} друга из {len(friends_list)}')
         group = resp.json()
+        count += 1
+        friend_number += 1
         try:
             for i in group['response']['items']:
                 group_friend_list.append(i)
@@ -44,14 +47,15 @@ def get_friends_groups(friends_list, params):
                 print('Пользователь закрыл информацию по своим сообществам')
             elif 6 == group['error']['error_code']:
                 print('Превышено количество запросов в секунду')
+                time.sleep(1)
+                count -= 1
+                friend_number -= 1
             elif 18 == group['error']['error_code']:
                 print('Страница удалена или заблокирована')
             elif 30 == group['error']['error_code']:
                 print('Страница приватная')
             else:
                 print(f'Возникла ошибка № {group["error"]["error_code"]}')
-        count += 1
-        time.sleep(3)
     set(group_friend_list)
     return list(group_friend_list)
 
@@ -64,11 +68,19 @@ def get_group_info(group_list, params):
     info_list = []
     info_group_list = []
     info_group_dict = {}
-    for group in group_list:
-        params['group_ids'] = group
+    count = 0
+    while count < len(group_list):
+        params['group_ids'] = group_list[count]
         params['fields'] = 'members_count'
         resp = requests.get(URL_API + 'groups.getById', params=params).json()
-        info_list.append(resp['response'][0])
+        count += 1
+        try:
+            info_list.append(resp['response'][0])
+        except KeyError:
+            if 6 == resp['error']['error_code']:
+                print('Превышено количество запросов в секунду')
+                time.sleep(1)
+                count -= 1
     for i in info_list:
         for key, value in i.items():
             if 'name' == key:
@@ -83,8 +95,6 @@ def get_group_info(group_list, params):
 def write_json(info):
     with open('groups.json', 'w') as f:
         json.dump(info, f, indent=4)
-
-
 
 if __name__ == '__main__':
     URL_API = 'https://api.vk.com/method/'
